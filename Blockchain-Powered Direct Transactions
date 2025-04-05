@@ -1,0 +1,30 @@
+public class BlockchainTransactions {
+
+    // Function to simulate a blockchain transaction
+    public static String executeTransaction(String sender, String receiver, double amount) {
+        // In real life, we would use Ethereum or another blockchain to make the transaction
+        return "Transaction successful: " + sender + " sent $" + amount + " to " + receiver + " via blockchain.";
+    }
+
+    // Function to track transaction status (simplified)
+    public static String trackTransaction(String transactionID) {
+        // Real-world implementation would check the blockchain ledger
+        return "Transaction " + transactionID + " is confirmed and completed.";
+    }
+
+    public static void main(String[] args) {
+        // Simulating a blockchain transaction
+        String sender = "BusinessA";
+        String receiver = "WarehouseB";
+        double amount = 500.0;  // Transaction amount
+
+        // Execute transaction
+        String transactionResult = executeTransaction(sender, receiver, amount);
+        System.out.println(transactionResult);  // Output transaction result
+
+        // Track transaction
+        String transactionID = "TX12345";
+        String transactionStatus = trackTransaction(transactionID);
+        System.out.println(transactionStatus);  // Output transaction status
+    }
+}
