@@ -1,0 +1,2 @@
+Ecologix is a cutting-edge logistics platform that combines the power of Artificial Intelligence (AI) and Blockchain technology to revolutionize and enhance supply chain and logistics operations. It is designed to tackle the traditional challenges of logistics—such as inefficiencies, lack of transparency, and manual bottlenecks—by offering intelligent automation, real-time tracking, and secure data management.
+
