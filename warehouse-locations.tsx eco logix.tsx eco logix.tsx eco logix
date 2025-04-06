@@ -1,0 +1,167 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+
+const warehouseData = {
+  delhi: [
+    {
+      id: "d1",
+      name: "Rohini Warehouse Complex",
+      location: "Sector 22, Rohini, Delhi",
+      size: "15,000 sq ft",
+      availability: "Available",
+      features: ["Climate Controlled", "24/7 Security", "Loading Docks"],
+    },
+    {
+      id: "d2",
+      name: "South Delhi Storage Hub",
+      location: "Saket District Center, South Delhi",
+      size: "22,000 sq ft",
+      availability: "Limited Space",
+      features: ["Automated Systems", "Cold Storage", "Urban Location"],
+    },
+    {
+      id: "d3",
+      name: "East Delhi Logistics Center",
+      location: "Patparganj Industrial Area, East Delhi",
+      size: "18,500 sq ft",
+      availability: "Available",
+      features: ["High Ceiling", "Multiple Loading Bays", "CCTV Surveillance"],
+    },
+  ],
+  punjab: [
+    {
+      id: "p1",
+      name: "Mohali Distribution Center",
+      location: "Sector 100, Mohali, Punjab",
+      size: "30,000 sq ft",
+      availability: "Available",
+      features: ["Eco-friendly Design", "Solar Powered", "Advanced Security"],
+    },
+    {
+      id: "p2",
+      name: "Ludhiana Logistics Park",
+      location: "Focal Point, Ludhiana, Punjab",
+      size: "45,000 sq ft",
+      availability: "Fully Booked",
+      features: ["Railway Access", "Large Vehicle Parking", "Bulk Storage"],
+    },
+    {
+      id: "p3",
+      name: "Amritsar Warehouse Facility",
+      location: "Chheharta, Amritsar, Punjab",
+      size: "25,000 sq ft",
+      availability: "Available",
+      features: ["Cross-Docking", "Inventory Management", "Border Proximity"],
+    },
+  ],
+  mumbai: [
+    {
+      id: "m1",
+      name: "Andheri Storage Solutions",
+      location: "MIDC, Andheri East, Mumbai",
+      size: "12,000 sq ft",
+      availability: "Limited Space",
+      features: ["Urban Location", "Last Mile Delivery", "24/7 Operations"],
+    },
+    {
+      id: "m2",
+      name: "Navi Mumbai Logistics Hub",
+      location: "Turbhe MIDC, Navi Mumbai",
+      size: "35,000 sq ft",
+      availability: "Available",
+      features: ["Port Proximity", "Container Handling", "Customs Facility"],
+    },
+    {
+      id: "m3",
+      name: "Thane Warehouse Complex",
+      location: "Ghodbunder Road, Thane, Mumbai",
+      size: "20,000 sq ft",
+      availability: "Available",
+      features: ["Modern Infrastructure", "Highway Access", "Flexible Space"],
+    },
+  ],
+}
+
+export default function WarehouseLocations() {
+  const [selectedWarehouse, setSelectedWarehouse] = useState(null)
+
+  return (
+    <div className="space-y-6">
+      <Tabs defaultValue="delhi">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="delhi">Delhi</TabsTrigger>
+          <TabsTrigger value="punjab">Punjab</TabsTrigger>
+          <TabsTrigger value="mumbai">Mumbai</TabsTrigger>
+        </TabsList>
+        {Object.keys(warehouseData).map((region) => (
+          <TabsContent key={region} value={region} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {warehouseData[region].map((warehouse) => (
+                <Card key={warehouse.id} className="overflow-hidden">
+                  <CardHeader className="pb-2">
+                    <CardTitle>{warehouse.name}</CardTitle>
+                    <CardDescription>{warehouse.location}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Size:</span>
+                        <span className="text-sm">{warehouse.size}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Status:</span>
+                        <Badge
+                          variant={
+                            warehouse.availability === "Available"
+                              ? "default"
+                              : warehouse.availability === "Limited Space"
+                                ? "outline"
+                                : "secondary"
+                          }
+                          className={
+                            warehouse.availability === "Available"
+                              ? "bg-green-500"
+                              : warehouse.availability === "Limited Space"
+                                ? "border-yellow-500 text-yellow-500"
+                                : "bg-gray-500"
+                          }
+                        >
+                          {warehouse.availability}
+                        </Badge>
+                      </div>
+                      <div className="mt-2">
+                        <span className="text-sm font-medium">Features:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {warehouse.features.map((feature, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {feature}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      className="w-full"
+                      variant={warehouse.availability === "Fully Booked" ? "outline" : "default"}
+                      disabled={warehouse.availability === "Fully Booked"}
+                    >
+                      {warehouse.availability === "Fully Booked" ? "Not Available" : "Book Space"}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
+  )
+}
+

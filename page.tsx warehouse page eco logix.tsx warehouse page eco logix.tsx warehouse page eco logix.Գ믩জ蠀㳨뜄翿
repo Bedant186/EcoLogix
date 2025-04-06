@@ -1,0 +1,505 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Box, Building2, CheckCircle, Clock, Package, ShoppingCart, Warehouse } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+
+// Warehouse data with additional fields for status, price, and packages
+const warehouseData = {
+  delhi: [
+    {
+      id: "d1",
+      name: "Rohini Warehouse Complex",
+      location: "Sector 22, Rohini, Delhi",
+      size: "15,000 sq ft",
+      status: "open", // open or acquired
+      price: 125000, // monthly price in INR
+      availability: "Available",
+      features: ["Climate Controlled", "24/7 Security", "Loading Docks"],
+      specifications: {
+        ceilingHeight: "30 ft",
+        loadingDocks: 4,
+        securityLevel: "Advanced",
+        temperature: "18-24°C",
+        powerBackup: "Yes",
+      },
+    },
+    {
+      id: "d2",
+      name: "South Delhi Storage Hub",
+      location: "Saket District Center, South Delhi",
+      size: "22,000 sq ft",
+      status: "acquired",
+      price: 180000,
+      availability: "Limited Space",
+      features: ["Automated Systems", "Cold Storage", "Urban Location"],
+      packages: 1245,
+      packageCapacity: 2000,
+      specifications: {
+        ceilingHeight: "25 ft",
+        loadingDocks: 6,
+        securityLevel: "Premium",
+        temperature: "15-20°C",
+        powerBackup: "Yes",
+      },
+    },
+    {
+      id: "d3",
+      name: "East Delhi Logistics Center",
+      location: "Patparganj Industrial Area, East Delhi",
+      size: "18,500 sq ft",
+      status: "open",
+      price: 145000,
+      availability: "Available",
+      features: ["High Ceiling", "Multiple Loading Bays", "CCTV Surveillance"],
+      specifications: {
+        ceilingHeight: "35 ft",
+        loadingDocks: 5,
+        securityLevel: "Standard",
+        temperature: "Ambient",
+        powerBackup: "Generator",
+      },
+    },
+  ],
+  punjab: [
+    {
+      id: "p1",
+      name: "Mohali Distribution Center",
+      location: "Sector 100, Mohali, Punjab",
+      size: "30,000 sq ft",
+      status: "open",
+      price: 210000,
+      availability: "Available",
+      features: ["Eco-friendly Design", "Solar Powered", "Advanced Security"],
+      specifications: {
+        ceilingHeight: "32 ft",
+        loadingDocks: 8,
+        securityLevel: "Advanced",
+        temperature: "Controlled",
+        powerBackup: "Solar + Grid",
+      },
+    },
+    {
+      id: "p2",
+      name: "Ludhiana Logistics Park",
+      location: "Focal Point, Ludhiana, Punjab",
+      size: "45,000 sq ft",
+      status: "acquired",
+      price: 320000,
+      availability: "Fully Booked",
+      features: ["Railway Access", "Large Vehicle Parking", "Bulk Storage"],
+      packages: 3850,
+      packageCapacity: 4000,
+      specifications: {
+        ceilingHeight: "40 ft",
+        loadingDocks: 12,
+        securityLevel: "Premium",
+        temperature: "Controlled",
+        powerBackup: "Industrial UPS",
+      },
+    },
+    {
+      id: "p3",
+      name: "Amritsar Warehouse Facility",
+      location: "Chheharta, Amritsar, Punjab",
+      size: "25,000 sq ft",
+      status: "open",
+      price: 185000,
+      availability: "Available",
+      features: ["Cross-Docking", "Inventory Management", "Border Proximity"],
+      specifications: {
+        ceilingHeight: "28 ft",
+        loadingDocks: 6,
+        securityLevel: "Advanced",
+        temperature: "Ambient",
+        powerBackup: "Yes",
+      },
+    },
+  ],
+  mumbai: [
+    {
+      id: "m1",
+      name: "Andheri Storage Solutions",
+      location: "MIDC, Andheri East, Mumbai",
+      size: "12,000 sq ft",
+      status: "acquired",
+      price: 195000,
+      availability: "Limited Space",
+      features: ["Urban Location", "Last Mile Delivery", "24/7 Operations"],
+      packages: 980,
+      packageCapacity: 1200,
+      specifications: {
+        ceilingHeight: "22 ft",
+        loadingDocks: 3,
+        securityLevel: "Premium",
+        temperature: "Controlled",
+        powerBackup: "Yes",
+      },
+    },
+    {
+      id: "m2",
+      name: "Navi Mumbai Logistics Hub",
+      location: "Turbhe MIDC, Navi Mumbai",
+      size: "35,000 sq ft",
+      status: "open",
+      price: 275000,
+      availability: "Available",
+      features: ["Port Proximity", "Container Handling", "Customs Facility"],
+      specifications: {
+        ceilingHeight: "38 ft",
+        loadingDocks: 10,
+        securityLevel: "Advanced",
+        temperature: "Controlled",
+        powerBackup: "Industrial Generator",
+      },
+    },
+    {
+      id: "m3",
+      name: "Thane Warehouse Complex",
+      location: "Ghodbunder Road, Thane, Mumbai",
+      size: "20,000 sq ft",
+      status: "acquired",
+      price: 165000,
+      availability: "Available",
+      features: ["Modern Infrastructure", "Highway Access", "Flexible Space"],
+      packages: 1560,
+      packageCapacity: 2200,
+      specifications: {
+        ceilingHeight: "26 ft",
+        loadingDocks: 5,
+        securityLevel: "Standard",
+        temperature: "Ambient",
+        powerBackup: "Yes",
+      },
+    },
+  ],
+}
+
+export default function WarehousesPage() {
+  const [activeTab, setActiveTab] = useState("delhi")
+  const [statusFilter, setStatusFilter] = useState("all") // all, open, acquired
+  const [selectedWarehouse, setSelectedWarehouse] = useState(null)
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false)
+
+  // Filter warehouses based on status
+  const getFilteredWarehouses = (region) => {
+    if (statusFilter === "all") {
+      return warehouseData[region]
+    }
+    return warehouseData[region].filter((warehouse) => warehouse.status === statusFilter)
+  }
+
+  // Format price with commas
+  const formatPrice = (price) => {
+    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+  }
+
+  // Calculate package utilization percentage
+  const getUtilizationPercentage = (packages, capacity) => {
+    return Math.round((packages / capacity) * 100)
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-12">
+      <div className="space-y-6">
+        <div className="flex flex-col items-center justify-center space-y-4 text-center">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-green-800">
+              Warehouse Locations
+            </h1>
+            <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+              Find and book warehouse space across India with our cloud-based warehouse sharing platform
+            </p>
+          </div>
+        </div>
+
+        {/* Status Filter */}
+        <div className="flex justify-center mb-6">
+          <div className="inline-flex items-center rounded-md border border-gray-200 p-1">
+            <Button
+              variant="ghost"
+              className={`rounded-sm px-3 ${statusFilter === "all" ? "bg-green-100 text-green-800" : ""}`}
+              onClick={() => setStatusFilter("all")}
+            >
+              All Warehouses
+            </Button>
+            <Button
+              variant="ghost"
+              className={`rounded-sm px-3 ${statusFilter === "open" ? "bg-green-100 text-green-800" : ""}`}
+              onClick={() => setStatusFilter("open")}
+            >
+              <Box className="mr-2 h-4 w-4" />
+              Open for Booking
+            </Button>
+            <Button
+              variant="ghost"
+              className={`rounded-sm px-3 ${statusFilter === "acquired" ? "bg-green-100 text-green-800" : ""}`}
+              onClick={() => setStatusFilter("acquired")}
+            >
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Acquired Warehouses
+            </Button>
+          </div>
+        </div>
+
+        {/* Warehouse Tabs */}
+        <Tabs defaultValue="delhi" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="delhi">Delhi</TabsTrigger>
+            <TabsTrigger value="punjab">Punjab</TabsTrigger>
+            <TabsTrigger value="mumbai">Mumbai</TabsTrigger>
+          </TabsList>
+
+          {Object.keys(warehouseData).map((region) => (
+            <TabsContent key={region} value={region} className="space-y-4">
+              {getFilteredWarehouses(region).length === 0 ? (
+                <div className="text-center py-12">
+                  <Warehouse className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-4 text-lg font-medium text-gray-900">No warehouses found</h3>
+                  <p className="mt-2 text-sm text-gray-500">
+                    There are no {statusFilter !== "all" ? statusFilter : ""} warehouses available in this region.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {getFilteredWarehouses(region).map((warehouse) => (
+                    <Card key={warehouse.id} className="overflow-hidden">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle>{warehouse.name}</CardTitle>
+                            <CardDescription>{warehouse.location}</CardDescription>
+                          </div>
+                          <Badge
+                            variant={warehouse.status === "open" ? "outline" : "default"}
+                            className={warehouse.status === "open" ? "border-green-500 text-green-500" : "bg-blue-500"}
+                          >
+                            {warehouse.status === "open" ? "Available" : "Acquired"}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid gap-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Size:</span>
+                            <span className="text-sm">{warehouse.size}</span>
+                          </div>
+
+                          {warehouse.status === "open" ? (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">Monthly Price:</span>
+                              <span className="text-sm font-semibold text-green-600">
+                                ₹{formatPrice(warehouse.price)}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">Packages:</span>
+                                <span className="text-sm">
+                                  {warehouse.packages} / {warehouse.packageCapacity}
+                                </span>
+                              </div>
+                              <Progress
+                                value={getUtilizationPercentage(warehouse.packages, warehouse.packageCapacity)}
+                                className="h-2"
+                              />
+                              <div className="flex justify-end">
+                                <span className="text-xs text-gray-500">
+                                  {getUtilizationPercentage(warehouse.packages, warehouse.packageCapacity)}% Utilized
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="mt-2">
+                            <span className="text-sm font-medium">Features:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {warehouse.features.map((feature, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {feature}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        {warehouse.status === "open" ? (
+                          <Button
+                            className="w-full bg-green-600 hover:bg-green-700"
+                            onClick={() => {
+                              setSelectedWarehouse(warehouse)
+                              setShowPurchaseDialog(true)
+                            }}
+                          >
+                            <ShoppingCart className="mr-2 h-4 w-4" />
+                            Book for a Month
+                          </Button>
+                        ) : (
+                          <Button className="w-full" variant="outline" onClick={() => setSelectedWarehouse(warehouse)}>
+                            <Package className="mr-2 h-4 w-4" />
+                            View Package Details
+                          </Button>
+                        )}
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
+
+      {/* Purchase Dialog for Open Warehouses */}
+      {selectedWarehouse && selectedWarehouse.status === "open" && (
+        <Dialog open={showPurchaseDialog} onOpenChange={setShowPurchaseDialog}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Book Warehouse Space</DialogTitle>
+              <DialogDescription>Review the details and confirm your booking for a one-month period.</DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">Warehouse:</span>
+                <span className="col-span-3">{selectedWarehouse.name}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">Location:</span>
+                <span className="col-span-3">{selectedWarehouse.location}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">Size:</span>
+                <span className="col-span-3">{selectedWarehouse.size}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">Monthly Price:</span>
+                <span className="col-span-3 text-green-600 font-semibold">₹{formatPrice(selectedWarehouse.price)}</span>
+              </div>
+
+              <div className="border-t pt-4 mt-2">
+                <h4 className="font-medium mb-2">Specifications:</h4>
+                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-gray-500" />
+                    <span>Ceiling Height: {selectedWarehouse.specifications.ceilingHeight}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Box className="h-4 w-4 text-gray-500" />
+                    <span>Loading Docks: {selectedWarehouse.specifications.loadingDocks}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-gray-500" />
+                    <span>Temperature: {selectedWarehouse.specifications.temperature}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-gray-500" />
+                    <span>Security: {selectedWarehouse.specifications.securityLevel}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-md mt-2">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Booking Period:</span>
+                  <span>1 Month</span>
+                </div>
+                <div className="flex justify-between items-center mt-2">
+                  <span className="font-medium">Total Amount:</span>
+                  <span className="text-lg font-bold text-green-600">₹{formatPrice(selectedWarehouse.price)}</span>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowPurchaseDialog(false)}>
+                Cancel
+              </Button>
+              <Button className="bg-green-600 hover:bg-green-700">Confirm Booking</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Details Dialog for Acquired Warehouses */}
+      {selectedWarehouse && selectedWarehouse.status === "acquired" && (
+        <Dialog open={!!selectedWarehouse} onOpenChange={() => setSelectedWarehouse(null)}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Warehouse Package Details</DialogTitle>
+              <DialogDescription>Current package storage and utilization information.</DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">Warehouse:</span>
+                <span className="col-span-3">{selectedWarehouse.name}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">Location:</span>
+                <span className="col-span-3">{selectedWarehouse.location}</span>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">Size:</span>
+                <span className="col-span-3">{selectedWarehouse.size}</span>
+              </div>
+
+              <div className="border-t pt-4 mt-2">
+                <h4 className="font-medium mb-3">Package Utilization:</h4>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span>Current Packages:</span>
+                    <span className="font-semibold">{selectedWarehouse.packages}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Total Capacity:</span>
+                    <span className="font-semibold">{selectedWarehouse.packageCapacity}</span>
+                  </div>
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span>Utilization:</span>
+                      <span className="font-semibold">
+                        {getUtilizationPercentage(selectedWarehouse.packages, selectedWarehouse.packageCapacity)}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={getUtilizationPercentage(selectedWarehouse.packages, selectedWarehouse.packageCapacity)}
+                      className="h-3"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-md mt-2">
+                <h4 className="font-medium text-blue-800 mb-2">Warehouse Status</h4>
+                <p className="text-sm text-blue-700">
+                  This warehouse has been acquired and is currently in use. It is storing {selectedWarehouse.packages}{" "}
+                  packages out of a total capacity of {selectedWarehouse.packageCapacity}.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button onClick={() => setSelectedWarehouse(null)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  )
+}
+

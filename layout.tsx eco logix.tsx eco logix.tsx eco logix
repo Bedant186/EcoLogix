@@ -1,0 +1,135 @@
+import type React from "react"
+import "./globals.css"
+import { Inter } from "next/font/google"
+import { ThemeProvider } from "@/components/theme-provider"
+import Navbar from "@/components/navbar"
+
+const inter = Inter({ subsets: ["latin"] })
+
+export const metadata = {
+  title: "Eco_logix - Sustainable Logistics Solutions",
+  description:
+    "AI-powered sustainable logistics platform with drone delivery, warehouse sharing, carbon tracking, and blockchain transactions.",
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="light">
+          <Navbar />
+          <main>{children}</main>
+          <footer className="w-full py-6 bg-green-900 text-white">
+            <div className="container px-4 md:px-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Eco_logix</h3>
+                  <ul className="space-y-1">
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        About Us
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Our Mission
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Careers
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Contact
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Solutions</h3>
+                  <ul className="space-y-1">
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        AI Inventory
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Drone Delivery
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Warehouse Sharing
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Carbon Tracking
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Resources</h3>
+                  <ul className="space-y-1">
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Blog
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Case Studies
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Documentation
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Support
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Legal</h3>
+                  <ul className="space-y-1">
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Privacy Policy
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Terms of Service
+                      </a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-200 hover:text-white">
+                        Cookie Policy
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <div className="mt-8 pt-6 border-t border-green-800 text-center text-sm text-green-200">
+                © {new Date().getFullYear()} Eco_logix. All rights reserved.
+              </div>
+            </div>
+          </footer>
+        </ThemeProvider>
+      </body>
+    </html>
+  )
+}
+

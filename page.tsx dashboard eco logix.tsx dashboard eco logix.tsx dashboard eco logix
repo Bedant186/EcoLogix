@@ -1,0 +1,330 @@
+"use client"
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  Legend,
+} from "recharts"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { ArrowDown, ArrowUp, Box, Boxes, Clipboard, DrillIcon as Drone, Leaf, Truck, Warehouse } from "lucide-react"
+
+// Sample data
+const carbonData = [
+  { name: "Jan", emissions: 65 },
+  { name: "Feb", emissions: 59 },
+  { name: "Mar", emissions: 80 },
+  { name: "Apr", emissions: 81 },
+  { name: "May", emissions: 56 },
+  { name: "Jun", emissions: 55 },
+  { name: "Jul", emissions: 40 },
+]
+
+const deliveryMethodData = [
+  { name: "Drone", value: 45 },
+  { name: "Electric Vehicle", value: 30 },
+  { name: "Traditional", value: 25 },
+]
+
+const warehouseUsageData = [
+  { name: "Delhi", usage: 85, capacity: 100 },
+  { name: "Mumbai", usage: 70, capacity: 100 },
+  { name: "Punjab", usage: 60, capacity: 100 },
+]
+
+const inventoryData = [
+  { name: "Jan", actual: 400, predicted: 420 },
+  { name: "Feb", actual: 450, predicted: 440 },
+  { name: "Mar", actual: 470, predicted: 480 },
+  { name: "Apr", actual: 520, predicted: 510 },
+  { name: "May", actual: 550, predicted: 540 },
+  { name: "Jun", actual: 580, predicted: 590 },
+]
+
+const COLORS = ["#4ade80", "#60a5fa", "#f87171"]
+
+export default function Dashboard() {
+  return (
+    <div className="flex-1 space-y-4 p-4 md:p-8">
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        <div className="flex items-center gap-2">
+          <Button variant="outline">Download Report</Button>
+          <Button className="bg-green-600 hover:bg-green-700">
+            <Leaf className="mr-2 h-4 w-4" />
+            Carbon Offset
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Carbon Emissions</CardTitle>
+            <Leaf className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">24.5 tons</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600 flex items-center">
+                <ArrowDown className="mr-1 h-4 w-4" />
+                12% from last month
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Warehouse Utilization</CardTitle>
+            <Warehouse className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">78%</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600 flex items-center">
+                <ArrowUp className="mr-1 h-4 w-4" />
+                8% from last month
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Drone Deliveries</CardTitle>
+            <Drone className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">1,245</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600 flex items-center">
+                <ArrowUp className="mr-1 h-4 w-4" />
+                18% from last month
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Blockchain Transactions</CardTitle>
+            <Boxes className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">3,456</div>
+            <p className="text-xs text-muted-foreground">
+              <span className="text-green-600 flex items-center">
+                <ArrowUp className="mr-1 h-4 w-4" />
+                24% from last month
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="carbon">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="carbon">Carbon Tracking</TabsTrigger>
+          <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          <TabsTrigger value="warehouse">Warehouses</TabsTrigger>
+          <TabsTrigger value="delivery">Delivery Methods</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="carbon" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Carbon Emissions Over Time</CardTitle>
+              <CardDescription>
+                Track your monthly carbon footprint and see the impact of your sustainability efforts
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={carbonData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="emissions" stroke="#4ade80" activeDot={{ r: 8 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="inventory" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Inventory Forecasting</CardTitle>
+              <CardDescription>Compare actual inventory levels with AI-predicted demand</CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={inventoryData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="actual" stroke="#4ade80" />
+                  <Line type="monotone" dataKey="predicted" stroke="#60a5fa" strokeDasharray="5 5" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="warehouse" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Warehouse Utilization</CardTitle>
+              <CardDescription>Current usage of warehouse space across different locations</CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={warehouseUsageData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="usage" fill="#4ade80" />
+                  <Bar dataKey="capacity" fill="#e2e8f0" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="delivery" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Delivery Methods</CardTitle>
+              <CardDescription>Distribution of delivery methods used for your shipments</CardDescription>
+            </CardHeader>
+            <CardContent className="h-80 flex justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={deliveryMethodData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {deliveryMethodData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="lg:col-span-4">
+          <CardHeader>
+            <CardTitle>Recent Transactions</CardTitle>
+            <CardDescription>Your latest blockchain-powered transactions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <div className="mr-4 bg-green-100 p-2 rounded-full">
+                  <Box className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium leading-none">Order #45782</p>
+                  <p className="text-sm text-muted-foreground">Completed via Smart Contract</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">₹24,500</p>
+                  <p className="text-xs text-muted-foreground">2 hours ago</p>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <div className="mr-4 bg-green-100 p-2 rounded-full">
+                  <Truck className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium leading-none">Warehouse Booking #12345</p>
+                  <p className="text-sm text-muted-foreground">Mohali, Punjab</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">₹15,000</p>
+                  <p className="text-xs text-muted-foreground">Yesterday</p>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <div className="mr-4 bg-green-100 p-2 rounded-full">
+                  <Clipboard className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium leading-none">Carbon Offset Purchase</p>
+                  <p className="text-sm text-muted-foreground">5 tons CO2 equivalent</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">₹8,750</p>
+                  <p className="text-xs text-muted-foreground">3 days ago</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Sustainability Goals</CardTitle>
+            <CardDescription>Track your progress towards sustainability targets</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium leading-none">Carbon Reduction</p>
+                  <p className="text-sm font-medium">65%</p>
+                </div>
+                <div className="h-2 w-full rounded-full bg-gray-100">
+                  <div className="h-2 rounded-full bg-green-600" style={{ width: "65%" }}></div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium leading-none">Drone Delivery Adoption</p>
+                  <p className="text-sm font-medium">45%</p>
+                </div>
+                <div className="h-2 w-full rounded-full bg-gray-100">
+                  <div className="h-2 rounded-full bg-green-600" style={{ width: "45%" }}></div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium leading-none">Eco-Friendly Packaging</p>
+                  <p className="text-sm font-medium">80%</p>
+                </div>
+                <div className="h-2 w-full rounded-full bg-gray-100">
+                  <div className="h-2 rounded-full bg-green-600" style={{ width: "80%" }}></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+

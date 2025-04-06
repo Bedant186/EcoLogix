@@ -1,0 +1,454 @@
+"use client"
+
+import { useState, useRef, useEffect } from "react"
+import Script from "next/script"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Mail, Phone, Building, Search } from "lucide-react"
+
+// Import the warehouse data from our existing component
+// This is the same data structure used in warehouse-locations.tsx
+const warehouseData = {
+  delhi: [
+    {
+      id: "d1",
+      name: "Rohini Warehouse Complex",
+      location: "Sector 22, Rohini, Delhi",
+      coordinates: { lat: 28.7197, lng: 77.1174 },
+      size: "15,000 sq ft",
+      availability: "Available",
+      features: ["Climate Controlled", "24/7 Security", "Loading Docks"],
+    },
+    {
+      id: "d2",
+      name: "South Delhi Storage Hub",
+      location: "Saket District Center, South Delhi",
+      coordinates: { lat: 28.5244, lng: 77.2067 },
+      size: "22,000 sq ft",
+      availability: "Limited Space",
+      features: ["Automated Systems", "Cold Storage", "Urban Location"],
+    },
+    {
+      id: "d3",
+      name: "East Delhi Logistics Center",
+      location: "Patparganj Industrial Area, East Delhi",
+      coordinates: { lat: 28.6226, lng: 77.2928 },
+      size: "18,500 sq ft",
+      availability: "Available",
+      features: ["High Ceiling", "Multiple Loading Bays", "CCTV Surveillance"],
+    },
+  ],
+  punjab: [
+    {
+      id: "p1",
+      name: "Mohali Distribution Center",
+      location: "Sector 100, Mohali, Punjab",
+      coordinates: { lat: 30.7046, lng: 76.7179 },
+      size: "30,000 sq ft",
+      availability: "Available",
+      features: ["Eco-friendly Design", "Solar Powered", "Advanced Security"],
+    },
+    {
+      id: "p2",
+      name: "Ludhiana Logistics Park",
+      location: "Focal Point, Ludhiana, Punjab",
+      coordinates: { lat: 30.901, lng: 75.8573 },
+      size: "45,000 sq ft",
+      availability: "Fully Booked",
+      features: ["Railway Access", "Large Vehicle Parking", "Bulk Storage"],
+    },
+    {
+      id: "p3",
+      name: "Amritsar Warehouse Facility",
+      location: "Chheharta, Amritsar, Punjab",
+      coordinates: { lat: 31.634, lng: 74.8723 },
+      size: "25,000 sq ft",
+      availability: "Available",
+      features: ["Cross-Docking", "Inventory Management", "Border Proximity"],
+    },
+  ],
+  mumbai: [
+    {
+      id: "m1",
+      name: "Andheri Storage Solutions",
+      location: "MIDC, Andheri East, Mumbai",
+      coordinates: { lat: 19.1136, lng: 72.8697 },
+      size: "12,000 sq ft",
+      availability: "Limited Space",
+      features: ["Urban Location", "Last Mile Delivery", "24/7 Operations"],
+    },
+    {
+      id: "m2",
+      name: "Navi Mumbai Logistics Hub",
+      location: "Turbhe MIDC, Navi Mumbai",
+      coordinates: { lat: 19.0654, lng: 73.0209 },
+      size: "35,000 sq ft",
+      availability: "Available",
+      features: ["Port Proximity", "Container Handling", "Customs Facility"],
+    },
+    {
+      id: "m3",
+      name: "Thane Warehouse Complex",
+      location: "Ghodbunder Road, Thane, Mumbai",
+      coordinates: { lat: 19.2183, lng: 72.9781 },
+      size: "20,000 sq ft",
+      availability: "Available",
+      features: ["Modern Infrastructure", "Highway Access", "Flexible Space"],
+    },
+  ],
+}
+
+// Flatten the warehouse data for easier access
+const allWarehouses = Object.values(warehouseData).flat()
+
+export default function ContactPage() {
+  const [mapLoaded, setMapLoaded] = useState(false)
+  const [selectedWarehouse, setSelectedWarehouse] = useState(null)
+  const [address, setAddress] = useState("")
+  const mapRef = useRef(null)
+  const mapInstanceRef = useRef(null)
+  const markersRef = useRef([])
+  const infoWindowRef = useRef(null)
+
+  // Initialize the map once the script is loaded
+  useEffect(() => {
+    if (mapLoaded && mapRef.current && !mapInstanceRef.current) {
+      initMap()
+    }
+  }, [mapLoaded])
+
+  // Initialize the map with default center on New Delhi
+  const initMap = () => {
+    const defaultLocation = { lat: 28.6139, lng: 77.209 } // New Delhi
+
+    // Create the map instance
+    const mapInstance = new window.google.maps.Map(mapRef.current, {
+      center: defaultLocation,
+      zoom: 8,
+      mapTypeControl: true,
+      streetViewControl: false,
+      fullscreenControl: true,
+    })
+
+    mapInstanceRef.current = mapInstance
+    infoWindowRef.current = new window.google.maps.InfoWindow()
+
+    // Add markers for all warehouses
+    addWarehouseMarkers()
+  }
+
+  // Add markers for all warehouses
+  const addWarehouseMarkers = () => {
+    // Clear existing markers
+    markersRef.current.forEach((marker) => marker.setMap(null))
+    markersRef.current = []
+
+    allWarehouses.forEach((warehouse) => {
+      const marker = new window.google.maps.Marker({
+        position: warehouse.coordinates,
+        map: mapInstanceRef.current,
+        title: warehouse.name,
+        icon: {
+          url: getMarkerIconByAvailability(warehouse.availability),
+          scaledSize: new window.google.maps.Size(30, 30),
+        },
+      })
+
+      marker.addListener("click", () => {
+        setSelectedWarehouse(warehouse)
+
+        // Open info window
+        infoWindowRef.current.setContent(
+          `<div style="padding: 8px;">
+            <h3 style="margin: 0 0 8px 0; font-weight: bold;">${warehouse.name}</h3>
+            <p style="margin: 0 0 4px 0;">${warehouse.location}</p>
+            <p style="margin: 0 0 4px 0;">Size: ${warehouse.size}</p>
+            <p style="margin: 0; color: ${getAvailabilityColor(warehouse.availability)};">
+              ${warehouse.availability}
+            </p>
+          </div>`,
+        )
+        infoWindowRef.current.open(mapInstanceRef.current, marker)
+      })
+
+      markersRef.current.push(marker)
+    })
+  }
+
+  // Get marker icon based on availability
+  const getMarkerIconByAvailability = (availability) => {
+    switch (availability) {
+      case "Available":
+        return "https://maps.google.com/mapfiles/ms/icons/green-dot.png"
+      case "Limited Space":
+        return "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
+      case "Fully Booked":
+        return "https://maps.google.com/mapfiles/ms/icons/red-dot.png"
+      default:
+        return "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+    }
+  }
+
+  // Get color based on availability for styling
+  const getAvailabilityColor = (availability) => {
+    switch (availability) {
+      case "Available":
+        return "#16a34a" // green-600
+      case "Limited Space":
+        return "#ca8a04" // yellow-600
+      case "Fully Booked":
+        return "#dc2626" // red-600
+      default:
+        return "#6b7280" // gray-500
+    }
+  }
+
+  // Geocode the address and update the map
+  const geocodeAddress = () => {
+    if (!mapInstanceRef.current || !address) return
+
+    const geocoder = new window.google.maps.Geocoder()
+
+    geocoder.geocode({ address }, (results, status) => {
+      if (status === "OK" && results[0]) {
+        const location = results[0].geometry.location
+
+        // Center the map on the geocoded location
+        mapInstanceRef.current.setCenter(location)
+        mapInstanceRef.current.setZoom(10)
+
+        // Add a marker for the searched location
+        new window.google.maps.Marker({
+          map: mapInstanceRef.current,
+          position: location,
+          animation: window.google.maps.Animation.DROP,
+          icon: {
+            url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+            scaledSize: new window.google.maps.Size(40, 40),
+          },
+        })
+
+        // Find nearby warehouses (simplified version)
+        findNearbyWarehouses(location)
+      } else {
+        alert("Geocode was not successful for the following reason: " + status)
+      }
+    })
+  }
+
+  // Find warehouses near the searched location
+  const findNearbyWarehouses = (location) => {
+    // Calculate distances and highlight nearby warehouses
+    const nearbyWarehouses = allWarehouses.filter((warehouse) => {
+      const warehouseLocation = new window.google.maps.LatLng(warehouse.coordinates.lat, warehouse.coordinates.lng)
+
+      const distance = window.google.maps.geometry.spherical.computeDistanceBetween(location, warehouseLocation)
+
+      // Consider warehouses within 50km as nearby
+      return distance < 50000
+    })
+
+    // Highlight nearby warehouses
+    markersRef.current.forEach((marker) => {
+      const isNearby = nearbyWarehouses.some(
+        (warehouse) =>
+          warehouse.coordinates.lat === marker.getPosition().lat() &&
+          warehouse.coordinates.lng === marker.getPosition().lng(),
+      )
+
+      if (isNearby) {
+        marker.setAnimation(window.google.maps.Animation.BOUNCE)
+        setTimeout(() => marker.setAnimation(null), 2000)
+      }
+    })
+
+    // If no nearby warehouses found
+    if (nearbyWarehouses.length === 0) {
+      alert("No warehouses found near this location. Try another area.")
+    }
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-12">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Contact Information */}
+        <div className="lg:col-span-1">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-green-800">Contact Us</CardTitle>
+              <CardDescription>
+                Get in touch with our team for any inquiries about our warehouses or services.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-start space-x-4">
+                <Building className="h-5 w-5 text-green-600 mt-0.5" />
+                <div>
+                  <h3 className="font-medium">Head Office</h3>
+                  <p className="text-sm text-gray-500">
+                    Eco_logix Tower, Sector 62
+                    <br />
+                    Noida, Uttar Pradesh 201301
+                    <br />
+                    India
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <Phone className="h-5 w-5 text-green-600" />
+                <div>
+                  <h3 className="font-medium">Phone</h3>
+                  <p className="text-sm text-gray-500">+91 1234567890</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <Mail className="h-5 w-5 text-green-600" />
+                <div>
+                  <h3 className="font-medium">Email</h3>
+                  <p className="text-sm text-gray-500">contact@ecologix.com</p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <h3 className="font-medium mb-2">Business Hours</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>Monday - Friday</div>
+                  <div>9:00 AM - 6:00 PM</div>
+                  <div>Saturday</div>
+                  <div>10:00 AM - 4:00 PM</div>
+                  <div>Sunday</div>
+                  <div>Closed</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Selected Warehouse Info */}
+          {selectedWarehouse && (
+            <Card className="mt-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-bold text-green-800">{selectedWarehouse.name}</CardTitle>
+                <CardDescription>{selectedWarehouse.location}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Size:</span>
+                    <span className="text-sm">{selectedWarehouse.size}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Status:</span>
+                    <Badge
+                      variant={
+                        selectedWarehouse.availability === "Available"
+                          ? "default"
+                          : selectedWarehouse.availability === "Limited Space"
+                            ? "outline"
+                            : "secondary"
+                      }
+                      className={
+                        selectedWarehouse.availability === "Available"
+                          ? "bg-green-500"
+                          : selectedWarehouse.availability === "Limited Space"
+                            ? "border-yellow-500 text-yellow-500"
+                            : "bg-gray-500"
+                      }
+                    >
+                      {selectedWarehouse.availability}
+                    </Badge>
+                  </div>
+                  <div className="mt-2">
+                    <span className="text-sm font-medium">Features:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {selectedWarehouse.features.map((feature, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {feature}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  className="w-full mt-4"
+                  variant={selectedWarehouse.availability === "Fully Booked" ? "outline" : "default"}
+                  disabled={selectedWarehouse.availability === "Fully Booked"}
+                >
+                  {selectedWarehouse.availability === "Fully Booked" ? "Not Available" : "Book Space"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Map Section */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-green-800">Find Our Warehouses</CardTitle>
+              <CardDescription>Search for a location to find nearby warehouses and check availability.</CardDescription>
+              <div className="flex gap-2 mt-4">
+                <Input
+                  placeholder="Enter an address or city"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="flex-1"
+                />
+                <Button onClick={geocodeAddress} className="bg-green-600 hover:bg-green-700">
+                  <Search className="h-4 w-4 mr-2" />
+                  Search
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-4 mt-4">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span className="text-xs">Available</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <span className="text-xs">Limited Space</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <span className="text-xs">Fully Booked</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span className="text-xs">Searched Location</span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Map Container */}
+              <div ref={mapRef} className="w-full h-[500px] rounded-md border border-gray-200"></div>
+
+              {/* Note about API key */}
+              <div className="mt-4 p-4 bg-yellow-50 rounded-md border border-yellow-200">
+                <h4 className="text-sm font-medium text-yellow-800">Developer Note:</h4>
+                <p className="text-xs text-yellow-700 mt-1">
+                  This example uses a placeholder API key. To use this map in production:
+                </p>
+                <ol className="text-xs text-yellow-700 list-decimal list-inside mt-2 space-y-1">
+                  <li>Get a valid Google Maps API key from the Google Cloud Console</li>
+                  <li>Enable the Maps JavaScript API and Geocoding API services</li>
+                  <li>Replace 'YOUR_API_KEY' in the Script component with your actual API key</li>
+                  <li>Consider restricting your API key to specific domains for security</li>
+                </ol>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Google Maps Script */}
+      <Script
+        src={`https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places,geometry`}
+        onLoad={() => setMapLoaded(true)}
+      />
+    </div>
+  )
+}
+

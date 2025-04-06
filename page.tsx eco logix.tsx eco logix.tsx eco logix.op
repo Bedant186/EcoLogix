@@ -1,0 +1,1097 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  ArrowRight,
+  CheckCircle,
+  CopyIcon,
+  Database,
+  ExternalLink,
+  FileText,
+  Info,
+  Layers,
+  RefreshCw,
+  Shield,
+  Wallet,
+  Warehouse,
+} from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { toast } from "@/components/ui/use-toast"
+import { ToastAction } from "@/components/ui/toast"
+
+// Mock data for blockchain addresses
+const mockAddresses = {
+  customer: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+  storageOwner: "0x2546BcD3c84621e976D8185a91A922aE77ECEc30",
+  productDeployer: "0xbDA5747bFD65F08deb54cb465eB87D40e51B197E",
+  contractAddress: "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+}
+
+// Mock transaction history
+const initialTransactions = [
+  {
+    id: "tx1",
+    hash: "0x9a7a...3b52",
+    fullHash: "0x9a7a6d6b663288e2fcbb3b4e5b3d258c0b41a3b52",
+    from: mockAddresses.customer,
+    to: mockAddresses.contractAddress,
+    totalAmount: 1.0,
+    splits: [
+      { recipient: "Product Deployer", address: mockAddresses.productDeployer, amount: 0.1, percentage: 10 },
+      { recipient: "Storage Owner", address: mockAddresses.storageOwner, amount: 0.4, percentage: 40 },
+      { recipient: "Customer", address: mockAddresses.customer, amount: 0.5, percentage: 50 },
+    ],
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    status: "confirmed",
+    blockNumber: 15482658,
+  },
+  {
+    id: "tx2",
+    hash: "0x7c3d...9f21",
+    fullHash: "0x7c3d8cb2b2943d8f6e8c9a6b5c9a8d7e6f5d4c3b2a19f21",
+    from: mockAddresses.customer,
+    to: mockAddresses.contractAddress,
+    totalAmount: 0.5,
+    splits: [
+      { recipient: "Product Deployer", address: mockAddresses.productDeployer, amount: 0.05, percentage: 10 },
+      { recipient: "Storage Owner", address: mockAddresses.storageOwner, amount: 0.2, percentage: 40 },
+      { recipient: "Customer", address: mockAddresses.customer, amount: 0.25, percentage: 50 },
+    ],
+    timestamp: new Date(Date.now() - 86400000).toISOString(),
+    status: "confirmed",
+    blockNumber: 15482600,
+  },
+]
+
+// Smart contract ABI (simplified for demo)
+const contractABI = [
+  {
+    inputs: [
+      { name: "_productDeployer", type: "address" },
+      { name: "_storageOwner", type: "address" },
+    ],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    inputs: [],
+    name: "splitPayment",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "sender", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" },
+      { indexed: false, name: "timestamp", type: "uint256" },
+    ],
+    name: "PaymentReceived",
+    type: "event",
+  },
+]
+
+// Smart contract code
+const smartContractCode = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract PaymentSplitter {
+    address public owner;
+    address public productDeployer;
+    address public storageOwner;
+    
+    // Percentages (in basis points, 1/100 of a percent)
+    uint16 public constant PRODUCT_DEPLOYER_SHARE = 1000; // 10%
+    uint16 public constant STORAGE_OWNER_SHARE = 4000;    // 40%
+    uint16 public constant CUSTOMER_SHARE = 5000;         // 50%
+    
+    struct Transaction {
+        address sender;
+        uint256 amount;
+        uint256 timestamp;
+    }
+    
+    Transaction[] public transactions;
+    
+    event PaymentReceived(
+        address indexed sender,
+        uint256 amount,
+        uint256 timestamp
+    );
+    
+    constructor(address _productDeployer, address _storageOwner) {
+        owner = msg.sender;
+        productDeployer = _productDeployer;
+        storageOwner = _storageOwner;
+    }
+    
+    function splitPayment() public payable {
+        require(msg.value > 0, "Payment amount must be greater than 0");
+        
+        uint256 deployerAmount = (msg.value * PRODUCT_DEPLOYER_SHARE) / 10000;
+        uint256 storageAmount = (msg.value * STORAGE_OWNER_SHARE) / 10000;
+        uint256 customerAmount = (msg.value * CUSTOMER_SHARE) / 10000;
+        
+        // Transfer shares to respective parties
+        payable(productDeployer).transfer(deployerAmount);
+        payable(storageOwner).transfer(storageAmount);
+        payable(msg.sender).transfer(customerAmount);
+        
+        // Record the transaction
+        transactions.push(Transaction({
+            sender: msg.sender,
+            amount: msg.value,
+            timestamp: block.timestamp
+        }));
+        
+        emit PaymentReceived(msg.sender, msg.value, block.timestamp);
+    }
+    
+    function getTransactionCount() public view returns (uint256) {
+        return transactions.length;
+    }
+    
+    function getTransaction(uint256 index) public view returns (
+        address sender,
+        uint256 amount,
+        uint256 timestamp
+    ) {
+        require(index < transactions.length, "Transaction index out of bounds");
+        Transaction memory txn = transactions[index];
+        return (txn.sender, txn.amount, txn.timestamp);
+    }
+}`
+
+export default function BlockchainPage() {
+  const [activeTab, setActiveTab] = useState("demo")
+  const [transactions, setTransactions] = useState(initialTransactions)
+  const [isWalletConnected, setIsWalletConnected] = useState(false)
+  const [currentAccount, setCurrentAccount] = useState("")
+  const [ethBalance, setEthBalance] = useState("0.00")
+  const [paymentAmount, setPaymentAmount] = useState("1.0")
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [transactionProgress, setTransactionProgress] = useState(0)
+  const [selectedTransaction, setSelectedTransaction] = useState(null)
+  const [showTransactionDetails, setShowTransactionDetails] = useState(false)
+  const [ethPrice, setEthPrice] = useState(2500) // Mock ETH price in USD
+
+  // Simulate connecting to MetaMask
+  const connectWallet = async () => {
+    setIsProcessing(true)
+
+    // Simulate connection delay
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+
+    // Check if MetaMask is installed
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        // Simulate successful connection
+        setIsWalletConnected(true)
+        setCurrentAccount(mockAddresses.customer)
+        setEthBalance("5.00")
+        toast({
+          title: "Wallet Connected",
+          description: "Successfully connected to MetaMask",
+        })
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Connection Failed",
+          description: "Could not connect to MetaMask",
+        })
+      }
+    } else {
+      // MetaMask not installed
+      toast({
+        variant: "destructive",
+        title: "MetaMask Not Found",
+        description: "Please install MetaMask to use this feature",
+        action: (
+          <ToastAction altText="Install">
+            <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer">
+              Install
+            </a>
+          </ToastAction>
+        ),
+      })
+    }
+
+    setIsProcessing(false)
+  }
+
+  // Simulate disconnecting from MetaMask
+  const disconnectWallet = () => {
+    setIsWalletConnected(false)
+    setCurrentAccount("")
+    setEthBalance("0.00")
+    toast({
+      title: "Wallet Disconnected",
+      description: "Your wallet has been disconnected",
+    })
+  }
+
+  // Simulate a blockchain transaction
+  const executeTransaction = async (isDemoMode = true) => {
+    setIsProcessing(true)
+    setTransactionProgress(0)
+
+    // Validate payment amount
+    const amount = Number.parseFloat(paymentAmount)
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Amount",
+        description: "Please enter a valid payment amount",
+      })
+      setIsProcessing(false)
+      return
+    }
+
+    // In real implementation, this would interact with the blockchain
+    // For demo, we'll simulate the transaction steps
+
+    // Step 1: Initialize transaction
+    setTransactionProgress(10)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // Step 2: Sign transaction
+    setTransactionProgress(30)
+    await new Promise((resolve) => setTimeout(resolve, 800))
+
+    // Step 3: Submit to blockchain
+    setTransactionProgress(60)
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    // Step 4: Wait for confirmation
+    setTransactionProgress(90)
+    await new Promise((resolve) => setTimeout(resolve, 700))
+
+    // Step 5: Transaction complete
+    setTransactionProgress(100)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // Create new transaction record
+    const newTransaction = {
+      id: `tx${transactions.length + 1}`,
+      hash: `0x${Math.random().toString(16).substring(2, 6)}...${Math.random().toString(16).substring(2, 6)}`,
+      fullHash: `0x${Math.random().toString(16).substring(2, 42)}`,
+      from: currentAccount || mockAddresses.customer,
+      to: mockAddresses.contractAddress,
+      totalAmount: amount,
+      splits: [
+        { recipient: "Product Deployer", address: mockAddresses.productDeployer, amount: amount * 0.1, percentage: 10 },
+        { recipient: "Storage Owner", address: mockAddresses.storageOwner, amount: amount * 0.4, percentage: 40 },
+        { recipient: "Customer", address: mockAddresses.customer, amount: amount * 0.5, percentage: 50 },
+      ],
+      timestamp: new Date().toISOString(),
+      status: "confirmed",
+      blockNumber: 15482658 + transactions.length,
+    }
+
+    // Add to transaction history
+    setTransactions([newTransaction, ...transactions])
+
+    // Show success message
+    toast({
+      title: "Transaction Successful",
+      description: `Payment of ${amount} ETH has been processed and split between parties`,
+    })
+
+    setIsProcessing(false)
+
+    // If not in demo mode, this would update the wallet balance
+    if (!isDemoMode && isWalletConnected) {
+      const newBalance = (Number.parseFloat(ethBalance) - amount).toFixed(2)
+      setEthBalance(newBalance)
+    }
+  }
+
+  // Format address for display
+  const formatAddress = (address) => {
+    if (!address) return ""
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
+  }
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString)
+    return date.toLocaleString()
+  }
+
+  // Copy to clipboard
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text)
+    toast({
+      title: "Copied to Clipboard",
+      description: "The address has been copied to your clipboard",
+    })
+  }
+
+  // View transaction details
+  const viewTransactionDetails = (transaction) => {
+    setSelectedTransaction(transaction)
+    setShowTransactionDetails(true)
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-12">
+      <div className="space-y-8">
+        <div className="flex flex-col items-center justify-center space-y-4 text-center">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-green-800">
+              Blockchain Transaction System
+            </h1>
+            <p className="max-w-[900px] text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+              Experience our transparent, secure blockchain-powered payment system with automatic fund distribution
+            </p>
+          </div>
+        </div>
+
+        <Tabs defaultValue="demo" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="demo">Demo Transaction</TabsTrigger>
+            <TabsTrigger value="live">Live Transaction</TabsTrigger>
+            <TabsTrigger value="contract">Smart Contract</TabsTrigger>
+          </TabsList>
+
+          {/* Demo Transaction Tab */}
+          <TabsContent value="demo" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Transaction Form */}
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle>Demo Transaction</CardTitle>
+                  <CardDescription>Simulate a blockchain transaction without using real cryptocurrency</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="demo-amount">Payment Amount (ETH)</Label>
+                    <Input
+                      id="demo-amount"
+                      type="number"
+                      placeholder="1.0"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      min="0.01"
+                      step="0.01"
+                    />
+                    <p className="text-sm text-gray-500">
+                      Approximately ${(Number.parseFloat(paymentAmount || 0) * ethPrice).toFixed(2)} USD
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Payment Split</Label>
+                    <div className="bg-gray-50 p-3 rounded-md space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm">Product Deployer (10%)</span>
+                        <span className="text-sm font-medium">
+                          {(Number.parseFloat(paymentAmount || 0) * 0.1).toFixed(2)} ETH
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm">Storage Owner (40%)</span>
+                        <span className="text-sm font-medium">
+                          {(Number.parseFloat(paymentAmount || 0) * 0.4).toFixed(2)} ETH
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm">Customer Refund (50%)</span>
+                        <span className="text-sm font-medium">
+                          {(Number.parseFloat(paymentAmount || 0) * 0.5).toFixed(2)} ETH
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    onClick={() => executeTransaction(true)}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        Execute Demo Transaction
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </CardFooter>
+              </Card>
+
+              {/* Transaction Visualization */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Transaction Flow</CardTitle>
+                  <CardDescription>Visualize how funds are distributed through the smart contract</CardDescription>
+                </CardHeader>
+                <CardContent className="min-h-[400px]">
+                  {isProcessing ? (
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span>Processing Transaction</span>
+                          <span>{transactionProgress}%</span>
+                        </div>
+                        <Progress value={transactionProgress} className="h-2" />
+                      </div>
+
+                      <div className="relative h-[300px] border rounded-md p-4">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <RefreshCw className="mx-auto h-12 w-12 text-green-600 animate-spin" />
+                            <p className="mt-4 text-sm text-gray-500">
+                              {transactionProgress < 30 && "Initializing transaction..."}
+                              {transactionProgress >= 30 && transactionProgress < 60 && "Signing transaction..."}
+                              {transactionProgress >= 60 && transactionProgress < 90 && "Submitting to blockchain..."}
+                              {transactionProgress >= 90 && "Confirming transaction..."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative h-[400px]">
+                      {/* Transaction Flow Diagram */}
+                      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 bg-green-100 rounded-md p-3 border border-green-200 w-64 text-center">
+                        <Wallet className="mx-auto h-6 w-6 text-green-600 mb-1" />
+                        <p className="font-medium text-green-800">Customer Wallet</p>
+                        <p className="text-xs text-gray-500">{formatAddress(mockAddresses.customer)}</p>
+                      </div>
+
+                      {/* Arrow Down */}
+                      <div className="absolute top-[80px] left-1/2 transform -translate-x-1/2 h-12 flex items-center">
+                        <ArrowRight className="h-8 w-8 text-gray-400 transform rotate-90" />
+                      </div>
+
+                      {/* Smart Contract */}
+                      <div className="absolute top-[120px] left-1/2 transform -translate-x-1/2 bg-blue-100 rounded-md p-3 border border-blue-200 w-64 text-center">
+                        <FileText className="mx-auto h-6 w-6 text-blue-600 mb-1" />
+                        <p className="font-medium text-blue-800">Smart Contract</p>
+                        <p className="text-xs text-gray-500">{formatAddress(mockAddresses.contractAddress)}</p>
+                      </div>
+
+                      {/* Arrows to Recipients */}
+                      <div className="absolute top-[200px] left-1/2 transform -translate-x-1/2 flex justify-between w-[500px]">
+                        <ArrowRight className="h-8 w-8 text-gray-400 transform -rotate-45" />
+                        <ArrowRight className="h-8 w-8 text-gray-400 transform rotate-90" />
+                        <ArrowRight className="h-8 w-8 text-gray-400 transform rotate-45" />
+                      </div>
+
+                      {/* Recipients */}
+                      <div className="absolute top-[240px] left-1/2 transform -translate-x-1/2 flex justify-between w-[500px]">
+                        {/* Product Deployer */}
+                        <div className="bg-purple-100 rounded-md p-3 border border-purple-200 w-[150px] text-center">
+                          <Database className="mx-auto h-6 w-6 text-purple-600 mb-1" />
+                          <p className="font-medium text-purple-800">Product Deployer</p>
+                          <p className="text-xs text-gray-500">{formatAddress(mockAddresses.productDeployer)}</p>
+                          <Badge className="mt-2 bg-purple-500">10%</Badge>
+                        </div>
+
+                        {/* Storage Owner */}
+                        <div className="bg-amber-100 rounded-md p-3 border border-amber-200 w-[150px] text-center">
+                          <Warehouse className="mx-auto h-6 w-6 text-amber-600 mb-1" />
+                          <p className="font-medium text-amber-800">Storage Owner</p>
+                          <p className="text-xs text-gray-500">{formatAddress(mockAddresses.storageOwner)}</p>
+                          <Badge className="mt-2 bg-amber-500">40%</Badge>
+                        </div>
+
+                        {/* Customer Refund */}
+                        <div className="bg-green-100 rounded-md p-3 border border-green-200 w-[150px] text-center">
+                          <Wallet className="mx-auto h-6 w-6 text-green-600 mb-1" />
+                          <p className="font-medium text-green-800">Customer Refund</p>
+                          <p className="text-xs text-gray-500">{formatAddress(mockAddresses.customer)}</p>
+                          <Badge className="mt-2 bg-green-500">50%</Badge>
+                        </div>
+                      </div>
+
+                      {/* Transaction Info */}
+                      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-[500px] bg-gray-50 rounded-md p-3 border border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <Shield className="h-5 w-5 text-green-600 mr-2" />
+                            <span className="text-sm font-medium">Secure Blockchain Transaction</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            Ethereum Network
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          All transactions are securely recorded on the blockchain and cannot be altered
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Transaction History */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Transaction History</CardTitle>
+                <CardDescription>View your past transactions and payment distributions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <div className="relative w-full overflow-auto">
+                    <table className="w-full caption-bottom text-sm">
+                      <thead>
+                        <tr className="border-b bg-gray-50">
+                          <th className="h-12 px-4 text-left align-middle font-medium">Transaction Hash</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">From</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">Amount</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">Date</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
+                          <th className="h-12 px-4 text-right align-middle font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transactions.map((tx) => (
+                          <tr key={tx.id} className="border-b transition-colors hover:bg-gray-50">
+                            <td className="p-4 align-middle">
+                              <div className="flex items-center">
+                                <Layers className="h-4 w-4 text-gray-400 mr-2" />
+                                <span className="font-mono">{tx.hash}</span>
+                              </div>
+                            </td>
+                            <td className="p-4 align-middle font-mono">{formatAddress(tx.from)}</td>
+                            <td className="p-4 align-middle font-medium">{tx.totalAmount} ETH</td>
+                            <td className="p-4 align-middle">{formatDate(tx.timestamp)}</td>
+                            <td className="p-4 align-middle">
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                {tx.status}
+                              </Badge>
+                            </td>
+                            <td className="p-4 align-middle text-right">
+                              <Button variant="ghost" size="sm" onClick={() => viewTransactionDetails(tx)}>
+                                View Details
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Live Transaction Tab */}
+          <TabsContent value="live" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Wallet Connection */}
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle>Connect Wallet</CardTitle>
+                  <CardDescription>Connect your Ethereum wallet to make a real transaction</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isWalletConnected ? (
+                    <div className="space-y-4">
+                      <div className="bg-green-50 p-4 rounded-md border border-green-200">
+                        <div className="flex items-center">
+                          <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                          <span className="font-medium text-green-800">Wallet Connected</span>
+                        </div>
+                        <div className="mt-2 space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500">Address:</span>
+                            <div className="flex items-center">
+                              <span className="text-sm font-mono">{formatAddress(currentAccount)}</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 ml-1"
+                                onClick={() => copyToClipboard(currentAccount)}
+                              >
+                                <CopyIcon className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-500">Balance:</span>
+                            <span className="text-sm font-medium">{ethBalance} ETH</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="payment-amount">Payment Amount (ETH)</Label>
+                        <Input
+                          id="payment-amount"
+                          type="number"
+                          placeholder="1.0"
+                          value={paymentAmount}
+                          onChange={(e) => setPaymentAmount(e.target.value)}
+                          min="0.01"
+                          step="0.01"
+                        />
+                        <p className="text-sm text-gray-500">
+                          Approximately ${(Number.parseFloat(paymentAmount || 0) * ethPrice).toFixed(2)} USD
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Payment Split</Label>
+                        <div className="bg-gray-50 p-3 rounded-md space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Product Deployer (10%)</span>
+                            <span className="text-sm font-medium">
+                              {(Number.parseFloat(paymentAmount || 0) * 0.1).toFixed(2)} ETH
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Storage Owner (40%)</span>
+                            <span className="text-sm font-medium">
+                              {(Number.parseFloat(paymentAmount || 0) * 0.4).toFixed(2)} ETH
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">Customer Refund (50%)</span>
+                            <span className="text-sm font-medium">
+                              {(Number.parseFloat(paymentAmount || 0) * 0.5).toFixed(2)} ETH
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Alert variant="outline" className="bg-yellow-50 border-yellow-200">
+                        <Info className="h-4 w-4 text-yellow-600" />
+                        <AlertTitle className="text-yellow-800">Test Network Only</AlertTitle>
+                        <AlertDescription className="text-yellow-700">
+                          This demo is connected to the Goerli test network. Do not use real ETH.
+                        </AlertDescription>
+                      </Alert>
+
+                      <div className="flex gap-2">
+                        <Button
+                          className="flex-1 bg-green-600 hover:bg-green-700"
+                          onClick={() => executeTransaction(false)}
+                          disabled={isProcessing}
+                        >
+                          {isProcessing ? (
+                            <>
+                              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            <>Pay Now</>
+                          )}
+                        </Button>
+                        <Button variant="outline" className="flex-1" onClick={disconnectWallet}>
+                          Disconnect
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>Connect Your Wallet</AlertTitle>
+                        <AlertDescription>
+                          You need to connect your Ethereum wallet to make transactions.
+                        </AlertDescription>
+                      </Alert>
+
+                      <Button className="w-full" onClick={connectWallet} disabled={isProcessing}>
+                        {isProcessing ? (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          <>Connect MetaMask</>
+                        )}
+                      </Button>
+
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500">
+                          Don't have MetaMask?{" "}
+                          <a
+                            href="https://metamask.io/download/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-green-600 hover:underline"
+                          >
+                            Install it here
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Network Information */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Network Information</CardTitle>
+                  <CardDescription>Details about the blockchain network and smart contract</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Network</Label>
+                        <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                          <Badge variant="outline" className="mr-2 bg-yellow-50 text-yellow-700 border-yellow-200">
+                            Testnet
+                          </Badge>
+                          <span>Goerli Test Network</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Gas Price</Label>
+                        <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                          <span>25 Gwei</span>
+                          <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-200">
+                            Low
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Smart Contract</Label>
+                        <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                          <span className="font-mono text-sm">{formatAddress(mockAddresses.contractAddress)}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 ml-1"
+                            onClick={() => copyToClipboard(mockAddresses.contractAddress)}
+                          >
+                            <CopyIcon className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+                            <a
+                              href={`https://goerli.etherscan.io/address/${mockAddresses.contractAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>ETH Price</Label>
+                        <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                          <span>${ethPrice.toFixed(2)} USD</span>
+                          <Badge className="ml-2 bg-green-500">+2.4%</Badge>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Alert className="bg-blue-50 border-blue-200">
+                      <Info className="h-4 w-4 text-blue-600" />
+                      <AlertTitle className="text-blue-800">How It Works</AlertTitle>
+                      <AlertDescription className="text-blue-700">
+                        <p className="mb-2">
+                          When you make a payment, our smart contract automatically splits the funds:
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 text-sm">
+                          <li>10% goes to the Product Deployer</li>
+                          <li>40% goes to the Storage Owner</li>
+                          <li>50% is returned to you as a customer reward</li>
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Transaction History (same as in Demo tab) */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Transaction History</CardTitle>
+                <CardDescription>View your past transactions and payment distributions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <div className="relative w-full overflow-auto">
+                    <table className="w-full caption-bottom text-sm">
+                      <thead>
+                        <tr className="border-b bg-gray-50">
+                          <th className="h-12 px-4 text-left align-middle font-medium">Transaction Hash</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">From</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">Amount</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">Date</th>
+                          <th className="h-12 px-4 text-left align-middle font-medium">Status</th>
+                          <th className="h-12 px-4 text-right align-middle font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transactions.map((tx) => (
+                          <tr key={tx.id} className="border-b transition-colors hover:bg-gray-50">
+                            <td className="p-4 align-middle">
+                              <div className="flex items-center">
+                                <Layers className="h-4 w-4 text-gray-400 mr-2" />
+                                <span className="font-mono">{tx.hash}</span>
+                              </div>
+                            </td>
+                            <td className="p-4 align-middle font-mono">{formatAddress(tx.from)}</td>
+                            <td className="p-4 align-middle font-medium">{tx.totalAmount} ETH</td>
+                            <td className="p-4 align-middle">{formatDate(tx.timestamp)}</td>
+                            <td className="p-4 align-middle">
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                {tx.status}
+                              </Badge>
+                            </td>
+                            <td className="p-4 align-middle text-right">
+                              <Button variant="ghost" size="sm" onClick={() => viewTransactionDetails(tx)}>
+                                View Details
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Smart Contract Tab */}
+          <TabsContent value="contract" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Contract Information */}
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle>Smart Contract</CardTitle>
+                  <CardDescription>Details about the payment splitter contract</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Contract Address</Label>
+                    <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                      <span className="font-mono text-sm">{formatAddress(mockAddresses.contractAddress)}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 ml-1"
+                        onClick={() => copyToClipboard(mockAddresses.contractAddress)}
+                      >
+                        <CopyIcon className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Contract Type</Label>
+                    <div className="p-3 bg-gray-50 rounded-md">
+                      <span>Payment Splitter</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Deployed On</Label>
+                    <div className="p-3 bg-gray-50 rounded-md">
+                      <span>Goerli Testnet</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Payment Split</Label>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center p-2 bg-purple-50 rounded-md">
+                        <span className="text-sm text-purple-800">Product Deployer</span>
+                        <Badge className="bg-purple-500">10%</Badge>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-amber-50 rounded-md">
+                        <span className="text-sm text-amber-800">Storage Owner</span>
+                        <Badge className="bg-amber-500">40%</Badge>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-green-50 rounded-md">
+                        <span className="text-sm text-green-800">Customer Refund</span>
+                        <Badge className="bg-green-500">50%</Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Deploy Your Own</AlertTitle>
+                    <AlertDescription>
+                      You can deploy your own version of this contract with custom split percentages.
+                    </AlertDescription>
+                  </Alert>
+                </CardContent>
+                <CardFooter>
+                  <Button className="w-full">
+                    View on Etherscan
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+
+              {/* Contract Code */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Contract Code</CardTitle>
+                  <CardDescription>Solidity code for the payment splitter smart contract</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="relative">
+                    <pre className="p-4 rounded-md bg-gray-900 text-gray-100 text-sm font-mono overflow-auto max-h-[500px]">
+                      <code>{smartContractCode}</code>
+                    </pre>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={() => copyToClipboard(smartContractCode)}
+                    >
+                      <CopyIcon className="h-3 w-3 mr-2" />
+                      Copy Code
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Transaction Details Dialog */}
+      {selectedTransaction && (
+        <Dialog open={showTransactionDetails} onOpenChange={setShowTransactionDetails}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Transaction Details</DialogTitle>
+              <DialogDescription>Complete information about this blockchain transaction</DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">Transaction Hash:</span>
+                <div className="col-span-3 flex items-center">
+                  <span className="font-mono text-sm">{selectedTransaction.fullHash}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 ml-1"
+                    onClick={() => copyToClipboard(selectedTransaction.fullHash)}
+                  >
+                    <CopyIcon className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">Block Number:</span>
+                <span className="col-span-3">{selectedTransaction.blockNumber}</span>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">From:</span>
+                <div className="col-span-3 flex items-center">
+                  <span className="font-mono text-sm">{selectedTransaction.from}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 ml-1"
+                    onClick={() => copyToClipboard(selectedTransaction.from)}
+                  >
+                    <CopyIcon className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">To (Contract):</span>
+                <div className="col-span-3 flex items-center">
+                  <span className="font-mono text-sm">{selectedTransaction.to}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 ml-1"
+                    onClick={() => copyToClipboard(selectedTransaction.to)}
+                  >
+                    <CopyIcon className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">Total Amount:</span>
+                <span className="col-span-3 font-medium">{selectedTransaction.totalAmount} ETH</span>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="font-medium">Timestamp:</span>
+                <span className="col-span-3">{formatDate(selectedTransaction.timestamp)}</span>
+              </div>
+
+              <div className="border-t pt-4 mt-2">
+                <h4 className="font-medium mb-3">Payment Distribution:</h4>
+                <div className="space-y-3">
+                  {selectedTransaction.splits.map((split, index) => (
+                    <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded-md">
+                      <div>
+                        <p className="font-medium">{split.recipient}</p>
+                        <p className="text-xs font-mono text-gray-500">{formatAddress(split.address)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{split.amount} ETH</p>
+                        <Badge variant="outline" className="text-xs">
+                          {split.percentage}%
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowTransactionDetails(false)}>
+                Close
+              </Button>
+              <Button asChild>
+                <a
+                  href={`https://goerli.etherscan.io/tx/${selectedTransaction.fullHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View on Etherscan
+                  <ExternalLink className="ml-2 h-4 w-4" />
+                </a>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  )
+}
+
